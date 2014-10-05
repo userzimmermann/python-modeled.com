@@ -9,8 +9,10 @@ from moretools import camelize, decamelize
 from win32com.client import DispatchBaseClass
 from win32com.client.gencache import EnsureDispatch
 
+from modeled import mobject
 
-class Type(type):
+
+class Type(mobject.type):
     """Metaclass for modeled :class:`COM` interface.
     """
     def __getitem__(cls, comname):
@@ -21,7 +23,7 @@ class Type(type):
         return cls[comname]
 
 
-class COM(with_metaclass(Type, object)):
+class COM(with_metaclass(Type, mobject)):
     """The modeled COM wrapper interface.
     """
     def __init__(self, com):

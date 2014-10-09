@@ -19,13 +19,13 @@
 
 .. moduleauthor:: Stefan Zimmermann <zimmermann.code@gmail.com>
 """
-from six import with_metaclass
+from six import with_metaclass, string_types
 
 __all__ = ['mCOM']
 
 from itertools import chain
 
-from moretools import camelize, decamelize
+from moretools import cached, camelize, decamelize
 
 from win32com.client import DispatchBaseClass
 from win32com.client.gencache import EnsureDispatch
@@ -36,18 +36,51 @@ from modeled import mobject
 class Type(mobject.type):
     """Metaclass for modeled :class:`COM` interface.
     """
-    def __getitem__(cls, comname):
-        com = EnsureDispatch(comname)
-        return cls(com)
+    @cached
+    def __getitem__(cls, comclass):
+        class genclass(cls):
+            pass
+
+        genclass.model.comclass = comclass
+        genclass.__name__ = genclass.__qualname__ = '%s[%s]' % (
+          cls.__name__, comclass.__name__)
+        return genclass
 
     def __getattr__(cls, comname):
-        return cls[comname]
+        return cls(comname)
 
 
 class COM(with_metaclass(Type, mobject)):
     """The modeled COM wrapper interface.
     """
+    class Namespace(str):
+        pass
+
+    def __new__(cls, com):
+        if isinstance(com, string_types):
+            try:
+                com = EnsureDispatch(com)
+            except:
+                class Namespace(cls.Namespace):
+                    COM = cls
+
+                    def __call__(self, comname):
+                        return self.COM('%s.%s' % (self, comname))
+
+                    def __getattr__(self, comname):
+                        return self(comname)
+
+                return Namespace(com)
+
+        try:
+            comclass = com._dispobj_.__class__
+        except AttributeError:
+            comclass = com.__class__
+        return cls[comclass](com)
+
     def __init__(self, com):
+        if isinstance(com, string_types):
+            com = EnsureDispatch(com)
         self.com = com
 
     def __getattr__(self, name):
